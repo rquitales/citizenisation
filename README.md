@@ -28,5 +28,11 @@ If time perimts, a batch process could also be done where daily/yearly trends ar
 ### Proposed Pipeline
 ![Proposed pipeline.](./img/pipeline.jpg)
 
+## DE Challenge(s)
+  - Keeping track of data from specific devices within a timeframe (ie, averaging every 30 seconds of data per device). Rolling window aggregations.
+  - Joining calibration parameters and device readings through device's ID.  -
+  - Tracking location of device.
+  - Averaging of calibrated readings within each device's vicinity.
+
 ## Data Source
 Sample citizen science data from radiation sensors can be obtained from [Safecast](https://blog.safecast.org/data/). Uncompressed, the `.csv` file is ~12 GB in size. This will be used as the seed data to bootstrap the required amounts.
