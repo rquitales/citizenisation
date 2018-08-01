@@ -4,7 +4,7 @@ from datetime import datetime
 from kafka import KafkaProducer, KeyedProducer
 
 #Define Argument variables for readability.
-sensorTopic = "testTopic"
+sensorTopic = "iotData"
 ipFile = '../input/ipAddresses.txt'
 seedFile = "../input/japanSafecast.txt"
 
@@ -13,7 +13,7 @@ def insertEntry(dictionary, deviceID, latitude, longitude, value):
     dictionary[str(deviceID)] = {'latitude': latitude, 'longitude' : longitude, 'value' : value, 'ctime' : str(datetime.now())}
 
 #Function to read unique number of lines in seed data file.
-def createSeedData(filename, numOfDevices = 100000):
+def createSeedData(filename, numOfDevices = 100):
     seedData = {}
     with open(filename, 'r') as csvfile:
         d_id = 1
@@ -39,7 +39,7 @@ def send2Kafka(ipAddresses, data, deviceKey):
 
 def main():
     #Create seed data.
-    seedData = createSeedData(seedFile, 100000)
+    seedData = createSeedData(seedFile, 100)
     #Get Kafka IP addressesself.
     ipAddresses = open(ipFile, 'r')
     ip = ipAddresses.read()
@@ -47,15 +47,11 @@ def main():
     ip = ip.split(",")
     for devKey in seedData.keys():
         send2Kafka(ip, seedData, devKey)
-    #for devKey in seedData.keys():
-    #    print({deviceKey: [seedData[deviceKey]['latitude'], seedData[deviceKey]['longitude'], seedData[deviceKey]['value']]})
     i = 0
     while i < 10:
         modifyReading(seedData)
         for devKey in seedData.keys():
             send2Kafka(ip, seedData, devKey)
-        #for j in seedData.keys():
-        #    print(seedData[j])
         i += 1
         time.sleep(1)
 
