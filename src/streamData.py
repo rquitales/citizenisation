@@ -10,7 +10,7 @@ seedFile = "../input/japanSafecast.txt"
 
 #Function to format new seed data entries into defaultdict structure.
 def insertEntry(dictionary, deviceID, latitude, longitude, value):
-    dictionary[str(deviceID)] = {'latitude': latitude, 'longitude' : longitude, 'value' : value, 'ctime' : str(datetime.now())}
+    dictionary[str(deviceID)] = {'latitude': latitude, 'longitude' : longitude, 'value' : value, 'ctime' : datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 #Function to read unique number of lines in seed data file.
 def createSeedData(filename, numOfDevices = 100):
@@ -28,7 +28,7 @@ def createSeedData(filename, numOfDevices = 100):
 def modifyReading(dictionary):
     for device in dictionary:
         dictionary[device]['value'] = dictionary[device]['value'] + random.randint(-5,5)
-        dictionary[device]['ctime'] = str(datetime.now())
+        dictionary[device]['ctime'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 #Send data to kafka.
 def send2Kafka(ipAddresses, data, deviceKey, sensorType = 'radiation'):
