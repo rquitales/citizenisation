@@ -31,10 +31,10 @@ def modifyReading(dictionary):
         dictionary[device]['ctime'] = str(datetime.now())
 
 #Send data to kafka.
-def send2Kafka(ipAddresses, data, deviceKey):
+def send2Kafka(ipAddresses, data, deviceKey, sensorType = 'radiation'):
     kProducer = (KafkaProducer(bootstrap_servers = ipAddresses,
               value_serializer = lambda v: json.dumps(v).encode('utf-8')))
-    kProducer.send(sensorTopic, {deviceKey: {'latitude' : data[deviceKey]['latitude'], 'longitude' : data[deviceKey]['longitude'], 'value' : data[deviceKey]['value'], 'ctime' : data[deviceKey]['ctime']}})
+    kProducer.send(sensorTopic, {sensorType: {'deviceID' : deviceKey, 'latitude' : data[deviceKey]['latitude'], 'longitude' : data[deviceKey]['longitude'], 'value' : data[deviceKey]['value'], 'ctime' : data[deviceKey]['ctime']}})
     kProducer.flush()
 
 def main():
@@ -46,12 +46,12 @@ def main():
     ipAddresses.close()
     ip = ip.split(",")
     for devKey in seedData.keys():
-        send2Kafka(ip, seedData, devKey)
+        send2Kafka(ip, seedData, devKey, 'radiation')
     i = 0
     while i < 10:
         modifyReading(seedData)
         for devKey in seedData.keys():
-            send2Kafka(ip, seedData, devKey)
+            send2Kafka(ip, seedData, devKey, 'radiation')
         i += 1
         time.sleep(1)
 
