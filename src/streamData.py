@@ -4,8 +4,8 @@ from kafka import KafkaProducer, KeyedProducer
 
 #Define Argument variables for readability.
 sensorTopic = "testTopic"
-ipFile = 'ipAddresses.txt'
-seedFile = "/home/rquitales/git/Insight/Challenge/groupData/output/concat.txt"
+ipFile = '../input/ipAddresses.txt'
+seedFile = "../input/japanSafecast.txt"
 
 #Function to format new seed data entries into defaultdict structure.
 def insertEntry(dictionary, deviceID, latitude, longitude, value):
