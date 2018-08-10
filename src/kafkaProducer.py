@@ -3,13 +3,6 @@ from collections import defaultdict
 from datetime import datetime
 from kafka import KafkaProducer, KeyedProducer
 
-#Define Argument variables for readability.
-#sensorTopic = "iotData"
-#ipFile = '../input/ipAddresses.txt'
-#seedFile = "../input/japanSafecast.txt"
-#sensorType = 'radiation'
-#positionInFile = 1
-
 sensorTopic = sys.argv[1]
 ipFile = sys.argv[2]
 seedFile = sys.argv[3]

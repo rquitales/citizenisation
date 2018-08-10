@@ -6,10 +6,7 @@
 from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
 from pyspark.streaming.kafka import KafkaUtils
-#from pyspark_cassandra import streaming
-#import pyspark_cassandra,
 import sys, json
-#import psycopg2
 
 from pyspark import StorageLevel
 
@@ -19,19 +16,13 @@ from pyspark.sql import Window
 from pyspark.sql import SQLContext
 from pyspark.sql import functions
 
-def foo(data):
-    print(data[0][0])
-
 def kafa2Json(sensorData):
   """ Parse input json stream """
   rawSensor = sensorData.map(lambda k: json.loads(k[1]))
   return rawSensor
 
 def main():
-
-    # Kafka and Spark Streaming specific vars
     batchLength = 20
-    windowLength = 60
 
     sc = SparkContext(appName="streamingIoTData")
     sc.setLogLevel("WARN")
@@ -46,9 +37,8 @@ def main():
     radiationData = KafkaUtils.createDirectStream(ssc, [topic1], kafkaBrokers)
     airData = KafkaUtils.createDirectStream(ssc, [topic2], kafkaBrokers)
 
-    ##### Merge streams and push rates to Cassandra #####
+    ##### Merge streams and print results #####
 
-    # Get location (room) info for users
     rawRadiation = kafa2Json(radiationData)
     rawAir = kafa2Json(airData)
 
