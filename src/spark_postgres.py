@@ -16,21 +16,43 @@ from pyspark.sql import SQLContext
 from pyspark.sql import functions
 from pyspark.streaming.util import rddToFileName, TransformFunction
 
+#Modified foreachRDD function to increase throughput connection with Postgres
+def foreachRDD_modified(self, func):
+        """
+        Apply a function to each RDD in this DStream.
+        """
+        if func.__code__.co_argcount == 1:
+            old_func = func
+            func = lambda t, rdd: old_func(rdd)
+        jfunc = TransformFunction(self._sc, func, self._jrdd_deserializer)
+        api = self._ssc._jvm.PythonDStream
+        print("")
+        print("############################################################")
+        print("#                                                          #")
+        print("#                  Opening DB Connection                   #")
+        print("#                                                          #")
+        print("############################################################")
+        print("Spark Processing Starting: " + str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        print("")
+        print("------------------------------------------------------------")
+        print("")
+        #Create DB connection here as Spark's lazy evaluation will only create the DB connection once at the start of job
+        global conn
+        conn = psycopg2.connect("dbname=%s user=%s password=%s host=%s"%(os.environ['psqlDB'], os.environ['psqlUser'], os.environ['psqlPwd'], os.environ['psql']))
+        global cur
+        cur = conn.cursor()
+        api.callForeachRDD(self._jdstream, jfunc)
+
+#Actual INSERT query function
 def save2postgres(time, rdd):
   if not rdd.isEmpty():
     taken = rdd.take(sys.maxsize)
     print(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + " - Number of records sent to DB: " + str(len(taken)))
-    print("Opening DB connection")
-    conn = psycopg2.connect("dbname=%s user=%s password=%s host=%s"%(os.environ['psqlDB'], os.environ['psqlUser'], os.environ['psqlPwd'], os.environ['psql']))
-    cur = conn.cursor()
     for data in taken:
       cur.execute('INSERT INTO results VALUES (%s, %s, %s, %s, %s, %s)', (data['deviceid'], data['latitude'], data['longitude'], data['ctime'], data['radiation'], data['air']))
     conn.commit()
-    print("Connection to DB closing")
-    conn.commit()
-    cur.close()
-    conn.close()
 
+#Parse kafka output to json format
 def kafa2Json(sensorData):
   """ Parse input json stream """
   rawSensor = sensorData.map(lambda k: json.loads(k[1]))
@@ -79,8 +101,8 @@ def main():
     finalResult = radResult.join(airResult).persist(StorageLevel.MEMORY_ONLY)
     finalResult = finalResult.map(lambda x: {"deviceid": x[0][0], "latitude": x[0][1], "longitude": x[0][2], "ctime": x[0][3], "radiation": x[1][0], "air": x[1][1]})
 
-    #Save to Postgres, with higher efficiency
-    finalResult.foreachRDD(save2postgres)
+    #Save to Postgres, with higher efficiency. Function call now, not class attribute
+    foreachRDD_modified(finalResult, save2postgres)
 
     ssc.start()
     ssc.awaitTermination()
