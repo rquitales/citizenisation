@@ -16,10 +16,17 @@ from pyspark.sql import SQLContext
 from pyspark.sql import functions
 from pyspark.streaming.util import rddToFileName, TransformFunction
 
-def RDDfunc(data):
+def save2postgres(time, rdd):
+  if not rdd.isEmpty():
+    taken = rdd.take(sys.maxsize)
+    print(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + " - Number of records sent to DB: " + str(len(taken)))
+    print("Opening DB connection")
     conn = psycopg2.connect("dbname=%s user=%s password=%s host=%s"%(os.environ['psqlDB'], os.environ['psqlUser'], os.environ['psqlPwd'], os.environ['psql']))
     cur = conn.cursor()
-    cur.execute('INSERT INTO results VALUES (%s, %s, %s, %s, %s, %s)', (data['deviceid'], data['latitude'], data['longitude'], data['ctime'], data['radiation'], data['air']))
+    for data in taken:
+      cur.execute('INSERT INTO results VALUES (%s, %s, %s, %s, %s, %s)', (data['deviceid'], data['latitude'], data['longitude'], data['ctime'], data['radiation'], data['air']))
+    conn.commit()
+    print("Connection to DB closing")
     conn.commit()
     cur.close()
     conn.close()
@@ -72,8 +79,8 @@ def main():
     finalResult = radResult.join(airResult).persist(StorageLevel.MEMORY_ONLY)
     finalResult = finalResult.map(lambda x: {"deviceid": x[0][0], "latitude": x[0][1], "longitude": x[0][2], "ctime": x[0][3], "radiation": x[1][0], "air": x[1][1]})
 
-    #Save to Postgres
-    finalResult.foreachRDD(lambda rdd: rdd.foreach(RDDfunc))
+    #Save to Postgres, with higher efficiency
+    finalResult.foreachRDD(save2postgres)
 
     ssc.start()
     ssc.awaitTermination()
