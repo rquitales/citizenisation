@@ -1,38 +1,61 @@
 # Citizenisation
+_A Pipeline for Smart Devices_
 
-## Importance
-As the prices of electronical components and sensors get cheaper over time, more and more IoT devices are popping up. An effective way to generate data on mass with these cheap devices is to incorporate citizen science. Citizen science projects can generate large volumes of data that require processing, since the computing processors on board the IoT devices are usually weak and cheap.
+Presentation: [https://iot.rquitales.com/slides/](https://iot.rquitales.com/slides/)
+## Introduction
+As the prices of electronical components and sensors get cheaper over time, more and more internet enabled smart devices are popping up. An effective way to generate data on mass with these cheap devices is to incorporate citizen science. Citizen science projects can generate high velocity of data that can require extensive processing due to the computing processors on board these devices being weak and cheap.
 
-## Project Idea
-A publically available dataset obtained through citizen science is the Safecast dataset. Sparked from the Japan Fukushima incident, more and more devices are being connected to the Safecast network to detect radiation levels (mSv/h) globally. As expected, the mass of these devices are located within Fukushima and the wider Japan area. I intend on focussing on obtaining data within Japan and carry-out stream processing on the devices. As devices are cheap, the quality of instantaneous readings have large errors. The DE challenge for this would be to do a streaming rolling average of the last *x* timeframe constantly. Usually, most of these sensors are uncalibrated, so attaching a ML library (linear regression) for calibration could be done for a device per device case.
+Currently, there are around 200 ongoing citizen science projects. As the interest in cheap devices and DIY kits available is increasing, the number of citizen science projects is also expected to grow.
 
-If time perimts, a batch process could also be done where daily/yearly trends are computed. A linear regression could also be computed (in place of a more advanced ML model) for forecasting.
+## Data
+This pipeline is using data from [Safecast](https://blog.safecast.org/data/), who are conducting a citizen science experiement in Japan. Smart sensors in Japan have been collection radiation data since the 2012 Fukushima Nuclear Incident.
 
-## Relevant Technologies
-  - S3/HDFS
-    - Storage of data source for streaming simulation and for batch processing.
-  - Kafka
-    - Ingestion of streaming sensor data.
-    - Ingestion of calibration parameters for linear modelling.
-  - Spark Streaming
-    - Processing of data. Averaging last *x* datapoints.
-  - Spark ML
-    - Calibration of device readings.
-  - Spark - *extension*
-    - Process older data for trends.
-  - Cassandra (?.. or another GIS based database)
-    - Storage of processed data.
-  - Leaflet
-    - Locality based visualisation.
+The data is ~13 GB in size. I will be using a subset of this data source to simulate a streaming pipeline.
 
-### Proposed Pipeline
-![Proposed pipeline.](./img/pipeline.jpg)
+The data source is rectangular, and contains the folllowing fields:
+ **time::** Time stamp of sensor measurement
+ **latitude:** Latitude of sensor
+ **longitude:** Longitude of sensor
+ **cpm:** Uncalibrated sensor reading of the radiation level, given in counts per minute (CPM).
 
-## DE Challenge(s)
-  - Keeping track of data from specific devices within a timeframe (ie, averaging every 30 seconds of data per device). Rolling window aggregations.
-  - Joining calibration parameters and device readings through device's ID.  -
-  - Tracking location of device.
-  - Averaging of calibrated readings within each device's vicinity.
+ Air quality data is simulated for this purpose. Instead of reporting CPM, it reports in electrical signal (millivolts, mV). This is then to be calibrated by the pipeline.
 
-## Data Source
-Sample citizen science data from radiation sensors can be obtained from [Safecast](https://blog.safecast.org/data/). Uncompressed, the `.csv` file is ~12 GB in size. This will be used as the seed data to bootstrap the required amounts.
+ 20,000 homes are simulated as well within Japan where they could have at least one of the two sensors.
+
+## Data Pipeline Architecture
+  - Raw data is utilised as seed files for the Kafka producer
+  - Kafka ingests the radiation and air quality data as two separate topics
+  - Spark Streaming processes the data
+  - The results are stored in PostgreSQL with the PostGIS extension
+  - UI is powered by leaflet for mapping visualisations and powered by PHP and Javascript
+
+![Pipeline](./img/pipeline.jpg)
+
+### Processing
+The bulk of the data processing occurs within Spark Streaming. For each device/sensor, Spark Streaming collects up to 60 seconds of data for it and computes its average. This is done to reduce noise in the sensor's reading, since they are cheap and can produce highly variable instantaneous readings. Both the averaged air quality and radiation data are then calibrated into meaningful units. As per other chemical sensors, the linear range of a sensor is always used for quantification purposes, hence, the calibration done within Spark Streaming is a linear mapping from the raw units to meaningful radiation () and air quality () units. The two sensor data are then merged using their "home" ids.
+
+The processed streaming data is then stored into PostgreSQL with the PostGIS extension. This allows for spatial calculations. Interpolation of sensor data from faulty units, or from homes that don't have one particular type of sensor is carried out, based on sensors from surrounding areas (within a 10 km range).
+
+The frontend is developed using PHP as the backend and leaflet as the main visualisation framework. This allows displaying a heatmap, while also enabling a search bar powered by spatial SQL queries.
+
+## Setup
+Resource provisioning and cluster installation were done using [Pegasus](https://github.com/InsightDataScience/pegasus), a tool developed by Insight.
+All instances were running Ubuntu 16.04.5 LTS at the time they were created.
+
+### Kafka Cluster
+`peg up kafka-cluster` with 1 master, 4 workers  
+`peg install spark-cluster [ssh, environment, aws, zookeeper, kafka, kafka-manager]`  
+`peg service spark-cluster zookeeper start`  
+`peg service spark-cluster kafka start`  
+`peg service spark-cluster kafka-manager start`  
+
+### Spark Cluster
+`peg up spark-cluster` with 1 master, 4 workers  
+`peg install spark-cluster [ssh, environment, aws, hadoop, spark]`  
+`peg service spark-cluster hadoop start`  
+`peg service spark-cluster spark start`  
+
+### PostgreSQL/Frontend Cluster
+`peg up frontend-cluster` with 1 instance  
+`peg install frontend-cluster [ssh, aws, environment]`  
+`peg ssh frontend-cluster 1 'sudo apt install postgresql nginx php7.0'`
