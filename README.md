@@ -13,7 +13,7 @@ This pipeline is using data from [Safecast](https://blog.safecast.org/data/), wh
 The data is ~13 GB in size. I will be using a subset of this data source to simulate a streaming pipeline.
 
 The data source is rectangular, and contains the folllowing fields:
- **time::** Time stamp of sensor measurement
+ **time:** Time stamp of sensor measurement
  **latitude:** Latitude of sensor
  **longitude:** Longitude of sensor
  **cpm:** Uncalibrated sensor reading of the radiation level, given in counts per minute (CPM).
@@ -29,10 +29,10 @@ The data source is rectangular, and contains the folllowing fields:
   - The results are stored in PostgreSQL with the PostGIS extension
   - UI is powered by leaflet for mapping visualisations and powered by PHP and Javascript
 
-![Pipeline](./img/pipeline.jpg)
+![Pipeline](./img/Pipeline.jpg)
 
 ### Processing
-The bulk of the data processing occurs within Spark Streaming. For each device/sensor, Spark Streaming collects up to 60 seconds of data for it and computes its average. This is done to reduce noise in the sensor's reading, since they are cheap and can produce highly variable instantaneous readings. Both the averaged air quality and radiation data are then calibrated into meaningful units. As per other chemical sensors, the linear range of a sensor is always used for quantification purposes, hence, the calibration done within Spark Streaming is a linear mapping from the raw units to meaningful radiation () and air quality () units. The two sensor data are then merged using their "home" ids.
+The bulk of the data processing occurs within Spark Streaming. For each device/sensor, Spark Streaming collects up to 60 seconds of data for it and computes its average. This is done to reduce noise in the sensor's reading, since they are cheap and can produce highly variable instantaneous readings. Both the averaged air quality and radiation data are then calibrated into meaningful units. As per other chemical sensors, the linear range of a sensor is always used for quantification purposes, hence, the calibration done within Spark Streaming is a linear mapping from the raw units to meaningful radiation (µSv/h) and air quality (µg/m3) units. The two sensor data are then merged using their "home" ids.
 
 The processed streaming data is then stored into PostgreSQL with the PostGIS extension. This allows for spatial calculations. Interpolation of sensor data from faulty units, or from homes that don't have one particular type of sensor is carried out, based on sensors from surrounding areas (within a 10 km range).
 
